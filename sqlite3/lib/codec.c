@@ -29,7 +29,7 @@ SQLITE_API int sqlite3_key_v2(sqlite3 *db, const char *zDb, const void *pKey, in
 	}
 	if (iDb < 0) {
 		rc = SQLITE_ERROR;
-		sqlite3Error(db, SQLITE_ERROR, "unknown database: %s", zDb);
+		sqlite3ErrorWithMsg(db, SQLITE_ERROR, "unknown database: %s", zDb);
 	} else {
 		rc = sqlite3CodecAttach(db, iDb, pKey, nKey);
 	}
@@ -50,7 +50,7 @@ SQLITE_API int sqlite3_rekey_v2(sqlite3 *db, const char *zDb, const void *pKey, 
 	sqlite3_mutex_enter(db->mutex);
 
 	rc = SQLITE_ERROR;
-	sqlite3Error(db, SQLITE_ERROR, "rekey is not implemented");
+	sqlite3ErrorWithMsg(db, SQLITE_ERROR, "rekey is not implemented");
 
 	rc = sqlite3ApiExit(db, rc);
 	sqlite3_mutex_leave(db->mutex);
@@ -76,9 +76,9 @@ int sqlite3CodecAttach(sqlite3 *db, int iDb, const void *pKey, int nKey) {
 
 	ctx.db    = db;
 	ctx.zPath = sqlite3BtreeGetFilename(pBt);
-	ctx.zName = db->aDb[iDb].zName;
+	ctx.zName = db->aDb[iDb].zDbSName;
 	ctx.nBuf  = sqlite3BtreeGetPageSize(pBt);
-	ctx.nRes  = sqlite3BtreeGetReserve(pBt);
+	ctx.nRes  = sqlite3BtreeGetOptimalReserve(pBt);
 	ctx.pKey  = pKey;
 	ctx.nKey  = nKey;
 
@@ -87,7 +87,7 @@ int sqlite3CodecAttach(sqlite3 *db, int iDb, const void *pKey, int nKey) {
 	sqlite3BtreeLeave(pBt);
 
 	if ((rc=go_codec_init(&ctx, &pCodec, &zErrMsg)) != SQLITE_OK) {
-		sqlite3Error(db, rc, (zErrMsg ? "%s" : 0), zErrMsg);
+		sqlite3ErrorWithMsg(db, rc, (zErrMsg ? "%s" : 0), zErrMsg);
 		free(zErrMsg);
 	} else if (pCodec) {
 		int nRes = go_codec_reserve(pCodec);
@@ -96,7 +96,7 @@ int sqlite3CodecAttach(sqlite3 *db, int iDb, const void *pKey, int nKey) {
 		}
 		if (rc != SQLITE_OK) {
 			go_codec_free(pCodec);
-			sqlite3Error(db, rc, "unable to reserve page space for the codec");
+			sqlite3ErrorWithMsg(db, rc, "unable to reserve page space for the codec");
 		} else {
 			sqlite3PagerSetCodec(pPager, go_codec_exec, go_codec_resize, go_codec_free, pCodec);
 		}
